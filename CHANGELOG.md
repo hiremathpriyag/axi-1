@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 - `axi_pkg`: Add `bufferable` and `modifiable` helper functions.
+- Add `axi_iw_converter`, replacement for `axi_id_remap`.
 
 ### Changed
 
