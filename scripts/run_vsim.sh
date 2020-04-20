@@ -64,6 +64,11 @@ exec_test() {
                 done
             done
             ;;
+        axi_iw_downsizer)
+            for NUMID in 1 5 16; do
+                call_vsim tb_axi_iw_downsizer -t 1ns -coverage -classdebug -voptargs="+acc +cover=bcesfx" -GNumIds=NUMID
+            done
+            ;;
         *)
             call_vsim tb_$1 -t 1ns -coverage -voptargs="+acc +cover=bcesfx"
             ;;
