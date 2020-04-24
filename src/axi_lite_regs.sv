@@ -20,29 +20,32 @@ module axi_lite_regs #(
   /// Number of registers which are mapped to the AXI channel. Each register has a size of
   /// `RegDataWidth` bit and is is aligned to the AXI4-Lite bus data width (AxiDataWidth).
   /// Ech register has an index `reg_index` associated with it, range `0` to `NumAxiRegs-1`
-  parameter int unsigned                NumAxiRegs   = 32'd0,
+  parameter int unsigned           NumAxiRegs   = 32'd0,
   /// Address width of `axi_req_i.aw.addr` and `axi_req_i.ar.addr`, is used to generate internal
   /// address map.
-  parameter int unsigned                AxiAddrWidth = 32'd0,
+  parameter int unsigned           AxiAddrWidth = 32'd0,
   /// Data width of the AXI4-Lite bus. Register address map is generated with this value.
-  parameter int unsigned                AxiDataWidth = 32'd0,
+  parameter int unsigned           AxiDataWidth = 32'd0,
   /// Privileged accesses only. The slave only executes AXI4-Lite transactions if the `AxProt[0]`
   /// bit in the `AW` or `AR` vector is set, otherwise ignores writes and answers with
   /// `axi_pkg::RESP_SLVERR` to transactions.
-  parameter bit                         PrivProtOnly = 1'b0,
+  parameter bit                    PrivProtOnly = 1'b0,
   /// Secure accesses only. The slave only executes AXI4-Lite transactions if the `AxProt[1]` bit
   /// in the `AW` or `AR` vector is set, otherwise ignores writes and answers with
   /// `axi_pkg::RESP_SLVERR` to transactions.
-  parameter bit                         SecuProtOnly = 1'b0,
+  parameter bit                    SecuProtOnly = 1'b0,
   /// The data width of the registers, this value has to be less or equal to `AxiDataWidth`.
   /// If it is less, the register gets zero extended for reads and higher bits on writes are
   /// ignored.
-  parameter int unsigned                RegDataWidth = 32'd0,
+  parameter int unsigned           RegDataWidth = 32'd0,
   /// This flag can specify a AXI read-only register at the given register index of the array.
   /// This flag only applies for AXI4-Lite write transactions. Transactions targeting an `reg_index`
   /// where `ReadOnly[reg_index] == 1'b1` will always respond with `axi_pkg::RESP_SLVERR` and
   /// not perform the write.
-  parameter logic [NumAxiRegs-1:0]      AxiReadOnly  = {NumAxiRegs{1'b0}},
+  parameter logic [NumAxiRegs-1:0] AxiReadOnly = {NumAxiRegs{1'b0}},
+  /// Reset value for the whole register array.
+  /// 2D-array with `NumAxiRegs` entries which each have size of `RegDataWidth`-bit.
+  parameter logic [NumAxiRegs-1:0][RegDataWidth-1:0] RegRstVal = {NumAxiRegs{{RegDataWidth{1'b0}}}},
   /// AXI4-Lite request struct. See macro definition in `include/typedef.svh`
   parameter type                        req_lite_t   = logic,
   /// AXI4-Lite response struct. See macro definition in `include/typedef.svh`
@@ -51,8 +54,6 @@ module axi_lite_regs #(
   parameter type axi_addr_t = logic[AxiAddrWidth-1:0],
   /// DEPENDENT PARAMETER, DO NOT OVERRIDE! Data type of an individual register.
   parameter type reg_data_t = logic[RegDataWidth-1:0],
-  /// Reset value for the whole register array.
-  parameter reg_data_t [NumAxiRegs-1:0] RegRstVal = {NumAxiRegs{RegDataWidth{1'b0}}},
   /// DEPENDENT PARAMETER, DO NOT OVERRIDE! Width of `reg_index`.
   parameter int unsigned IdxWidth = (NumAxiRegs > 32'd1) ? $clog2(NumAxiRegs) : 32'd1,
   /// DEPENDENT PARAMETER, DO NOT OVERRIDE! Type of `reg_index`.
@@ -111,9 +112,7 @@ module axi_lite_regs #(
   /// (Array size: `NumAxiRegs` * RegDataWidth-bit)
   output reg_data_t [NumAxiRegs-1:0] reg_q_o
 );
-  // definition and generation of the address rule and register indices
-  localparam int unsigned IdxWidth = (NumAxiRegs > 32'd1) ? $clog2(NumAxiRegs) : 32'd1;
-  typedef logic [IdxWidth-1:0] reg_idx_t;
+  // definition and generation of the address rule
   typedef struct packed {
     int unsigned idx;
     axi_addr_t   start_addr;
@@ -121,7 +120,7 @@ module axi_lite_regs #(
   } axi_rule_t;
   axi_rule_t    [NumAxiRegs-1:0] addr_map;
   for (genvar i = 0; i < NumAxiRegs; i++) begin : gen_addr_map
-    assign addr_map[i] = rule_t'{
+    assign addr_map[i] = axi_rule_t'{
       idx:        i,
       start_addr: axi_base_addr_i +  i   * (AxiDataWidth / 8),
       end_addr:   axi_base_addr_i + (i+1)* (AxiDataWidth / 8)
@@ -323,29 +322,30 @@ endmodule
 /// function as the ones in `axi_lite_regs`, however are defined in `ALL_CAPS`.
 module axi_lite_regs_intf #(
   /// See `axi_lite_reg`: `NumAxiRegs`.
-  parameter int unsigned                  NUM_AXI_REGS   = 32'd0,
+  parameter int unsigned                                 NUM_AXI_REGS   = 32'd0,
   /// See `axi_lite_reg`: `AxiAddrWidth`.
-  parameter int unsigned                  AXI_ADDR_WIDTH = 32'd0,
+  parameter int unsigned                                 AXI_ADDR_WIDTH = 32'd0,
   /// See `axi_lite_reg`: `AxiDataWidth`.
-  parameter int unsigned                  AXI_DATA_WIDTH = 32'd0,
+  parameter int unsigned                                 AXI_DATA_WIDTH = 32'd0,
   /// See `axi_lite_reg`: `PrivProtOnly`.
-  parameter bit                           PRIV_PROT_ONLY = 1'd0,
+  parameter bit                                          PRIV_PROT_ONLY = 1'd0,
   /// See `axi_lite_reg`: `SecuProtOnly`.
-  parameter bit                           SECU_PROT_ONLY = 1'd0,
+  parameter bit                                          SECU_PROT_ONLY = 1'd0,
   /// See `axi_lite_reg`: `RegDataWidth`.
-  parameter int unsigned                  REG_DATA_WIDTH = 32'd0,
+  parameter int unsigned                                 REG_DATA_WIDTH = 32'd0,
   /// See `axi_lite_reg`: `AxiReadOnly`.
-  parameter int unsigned                  AXI_READ_ONLY  = {NUM_AXI_REGS{1'b0}},
-  /// DEPENDENT PARAMETER, DO NOT OVERRIDE! See `axi_lite_reg`: `axi_addr_t`.
-  parameter type axi_addr_t = logic[AXI_ADDR_WIDTH-1:0],
-  /// DEPENDENT PARAMETER, DO NOT OVERRIDE! See `axi_lite_reg`: `reg_data_t`.
-  parameter type reg_data_t = logic[REG_DATA_WIDTH-1:0],
+  parameter logic [NUM_AXI_REGS-1:0]                     AXI_READ_ONLY  = {NUM_AXI_REGS{1'b0}},
   /// See `axi_lite_reg`: `RegRstVal`
-  parameter reg_data_t [NUM_AXI_REGS-1:0] REG_RST_VAL    = {NUM_AXI_REGS{REG_DATA_WIDTH{1'b0}}},
+  parameter logic [NUM_AXI_REGS-1:0][REG_DATA_WIDTH-1:0] REG_RST_VAL    =
+      {NUM_AXI_REGS{{REG_DATA_WIDTH{1'b0}}}},
+  /// DEPENDENT PARAMETER, DO NOT OVERRIDE! See `axi_lite_reg`: `axi_addr_t`.
+  parameter type axi_addr_t        = logic[AXI_ADDR_WIDTH-1:0],
+  /// DEPENDENT PARAMETER, DO NOT OVERRIDE! See `axi_lite_reg`: `reg_data_t`.
+  parameter type reg_data_t        = logic[REG_DATA_WIDTH-1:0],
   /// DEPENDENT PARAMETER, DO NOT OVERRIDE! See `axi_lite_reg`: `IdxWidth`.
   parameter int unsigned IDX_WIDTH = (NUM_AXI_REGS > 32'd1) ? $clog2(NUM_AXI_REGS) : 32'd1,
   /// DEPENDENT PARAMETER, DO NOT OVERRIDE! See `axi_lite_reg`: `reg_idx_t`.
-  parameter type reg_idx_t = logic [IDX_WIDTH-1:0]
+  parameter type reg_idx_t         = logic [IDX_WIDTH-1:0]
 ) (
   /// Clock input signal (1-bit).
   input  logic                         clk_i,
@@ -356,13 +356,13 @@ module axi_lite_regs_intf #(
   /// See `axi_lite_reg`: `axi_base_addr_i`.
   input  axi_addr_t                    axi_base_addr_i,
   /// See `axi_lite_reg`: `axi_wr_idx_o`.
-  input  reg_idx_t                     axi_wr_idx_o
+  input  reg_idx_t                     axi_wr_idx_o,
   /// See `axi_lite_reg`: `axi_wr_active_o`.
-  input  logic                         axi_wr_active_o
+  input  logic                         axi_wr_active_o,
   /// See `axi_lite_reg`: `axi_rd_idx_o`.
-  input  reg_idx_t                     axi_rd_idx_o
+  input  reg_idx_t                     axi_rd_idx_o,
   /// See `axi_lite_reg`: `axi_rd_active_o`.
-  input  logic                         axi_rd_active_o
+  input  logic                         axi_rd_active_o,
   /// See `axi_lite_reg`: `reg_d_i`.
   input  reg_data_t [NUM_AXI_REGS-1:0] reg_d_i,
   /// See `axi_lite_reg`: `reg_load_i`.
@@ -395,9 +395,9 @@ module axi_lite_regs_intf #(
     .SecuProtOnly ( SECU_PROT_ONLY ),
     .RegDataWidth ( REG_DATA_WIDTH ),
     .AxiReadOnly  ( AXI_READ_ONLY  ),
+    .RegRstVal    ( REG_RST_VAL    ),
     .req_lite_t   ( req_lite_t     ),
-    .resp_lite_t  ( resp_lite_t    ),
-    .RegRstVal    ( REG_RST_VAL    )
+    .resp_lite_t  ( resp_lite_t    )
   ) i_axi_lite_regs (
     .clk_i,                         // Clock
     .rst_ni,                        // Asynchronous reset active low
