@@ -238,7 +238,7 @@ module axi_lite_regs #(
             reg_byte_idx = unsigned'(aw_chunk_idx) * AxiStrbWidth + i;
             // Only execute if the byte is mapped onto the register array.
             if (reg_byte_idx < RegNumBytes) begin
-              // Only update the reg From an AXI write if it is not `ReadOnly`.
+              // Only update the reg from an AXI write if it is not `ReadOnly`.
               // Only connect the data and load to the reg, if the byte is written from AXI.
               // This allows for simultaneous direct load onto unwritten bytes.
               if (!AxiReadOnly[reg_byte_idx] && axi_req_i.w.strb[i]) begin
